@@ -1,0 +1,13 @@
+services:
+  flamenco-manager:
+    build:
+      target: flamenco-manager
+    ports:
+      - 8080:8080
+    volumes:
+      - ./data:/data
+  flamenco-worker:
+    build:
+      target: flamenco-worker
+    volumes:
+      - ./data:/data

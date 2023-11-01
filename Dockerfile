@@ -29,26 +29,27 @@ ARG BLENDER_DOWNLOAD_URL
 RUN curl -sSL "$BLENDER_DOWNLOAD_URL" | tar -xJv --strip-components=1
 RUN  ls -la
 
-FROM --platform=amd64 debian:bookworm-slim AS flamenco-manager
-RUN ln -s /opt/flamenco/flamenco-manager /usr/local/bin/flamenco-manager
-CMD ["flamenco-manager"]
-WORKDIR /opt/flamenco/
-COPY --from=flamenco-downloader /data/flamenco/flamenco-manager .
-WORKDIR /
-
-FROM --platform=amd64 debian:bookworm-slim AS flamenco-worker
+FROM --platform=amd64 debian:bookworm-slim AS base-runtime
 RUN apt-get update \
   && apt-get install -y \
   xorg \
   xvfb \
   libxkbcommon0 \
   && rm -rf /var/lib/apt/lists/*
-RUN ln -s /opt/flamenco/flamenco-worker /usr/local/bin/flamenco-worker
 RUN ln -s /opt/blender/blender /usr/local/bin/blender
+COPY --link --from=blender-downloader /data/blender /opt/blender
+
+FROM base-runtime AS flamenco-manager
+RUN ln -s /opt/flamenco/flamenco-manager /usr/local/bin/flamenco-manager
+RUN ln -s /opt/flamenco/flamenco-manager.yaml /usr/local/bin/flamenco-manager.yaml
+CMD ["flamenco-manager"]
+COPY --link --from=flamenco-downloader /data/flamenco/flamenco-manager /opt/flamenco/
+WORKDIR /workdir
+COPY --link flamenco-manager.yaml .
+
+FROM base-runtime AS flamenco-worker
+RUN ln -s /opt/flamenco/flamenco-worker /usr/local/bin/flamenco-worker
 CMD ["flamenco-worker"]
-WORKDIR /opt/flamenco/
-COPY --from=flamenco-downloader /data/flamenco/flamenco-worker .
-COPY --from=flamenco-downloader /data/flamenco/tools/ ./tools/
-WORKDIR /opt/blender/
-COPY --from=blender-downloader /data/blender .
-WORKDIR /
+COPY --link --from=flamenco-downloader /data/flamenco/flamenco-worker /opt/flamenco/
+COPY --link --from=flamenco-downloader /data/flamenco/tools/ /opt/flamenco/tools/
+WORKDIR /workdir
